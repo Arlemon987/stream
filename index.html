@@ -213,6 +213,8 @@ let currentCall = null;
 
 let peerReady = false;
 
+let isHosting = false;
+
 function setStatus(text,color="green"){
 
     statusIndicator.innerHTML = `
@@ -221,13 +223,13 @@ function setStatus(text,color="green"){
     `;
 }
 
-function generateID(){
+function randomID(){
 
     return "stream-" + Math.random().toString(36).substring(2,12);
 
 }
 
-const peer = new Peer(generateID(),{
+const peer = new Peer(randomID(),{
 
     debug:2,
 
@@ -267,6 +269,7 @@ const peer = new Peer(generateID(),{
 
         ]
     }
+
 });
 
 peer.on("open",(id)=>{
@@ -279,15 +282,17 @@ peer.on("open",(id)=>{
 
     setStatus("READY","green");
 
+    console.log("Peer Ready:",id);
+
 });
 
 peer.on("error",(err)=>{
 
     console.error(err);
 
-    alert("Connection Error");
-
     setStatus("ERROR","red");
+
+    alert("Peer Error: " + err.type);
 
 });
 
@@ -301,7 +306,11 @@ peer.on("disconnected",()=>{
 
 peer.on("call",(call)=>{
 
-    if(!localStream){
+    console.log("Incoming call");
+
+    if(!isHosting || !localStream){
+
+        console.log("Host stream not ready");
 
         return;
     }
@@ -310,7 +319,7 @@ peer.on("call",(call)=>{
 
     call.answer(localStream);
 
-    setupCall(call);
+    setupCallEvents(call);
 
 });
 
@@ -321,12 +330,16 @@ async function startHosting(){
         localStream = await navigator.mediaDevices.getDisplayMedia({
 
             video:{
-                frameRate:24
+                frameRate:24,
+                width:{ ideal:1280 },
+                height:{ ideal:720 }
             },
 
             audio:true
 
         });
+
+        isHosting = true;
 
         document.getElementById("hostBtn").disabled = true;
 
@@ -348,13 +361,16 @@ async function startHosting(){
 
         });
 
+        console.log("Broadcast started");
+
     }catch(err){
 
         console.error(err);
 
-        alert("Screen sharing denied");
+        alert("Screen share denied");
 
     }
+
 }
 
 async function joinStream(){
@@ -379,54 +395,95 @@ async function joinStream(){
 
 }
 
-function connectToHost(hostId){
+async function createDummyStream(){
 
-    setStatus("CONNECTING","yellow");
+    const canvas = document.createElement("canvas");
 
-    const fakeStream = new MediaStream();
+    canvas.width = 1;
+    canvas.height = 1;
 
-    const call = peer.call(hostId,fakeStream);
+    const stream = canvas.captureStream(1);
 
-    if(!call){
-
-        alert("Failed to connect");
-
-        return;
-    }
-
-    currentCall = call;
-
-    setupCall(call);
+    return stream;
 
 }
 
-function setupCall(call){
+async function connectToHost(hostId){
 
-    call.on("stream",(remoteStream)=>{
+    try{
 
-        remoteVideo.srcObject = remoteStream;
+        setStatus("CONNECTING","yellow");
 
-        remoteVideo.muted = false;
+        const dummyStream = await createDummyStream();
 
-        remoteVideo.play()
-        .then(()=>{
+        const call = peer.call(hostId,dummyStream,{
 
-            console.log("Video started");
-
-        })
-        .catch(async()=>{
-
-            try{
-
-                await remoteVideo.play();
-
-            }catch(err){
-
-                console.log(err);
-
+            metadata:{
+                viewer:true
             }
 
         });
+
+        if(!call){
+
+            alert("Unable to connect");
+
+            return;
+        }
+
+        currentCall = call;
+
+        setupCallEvents(call);
+
+    }catch(err){
+
+        console.error(err);
+
+        alert("Connection failed");
+
+    }
+
+}
+
+function setupCallEvents(call){
+
+    let streamReceived = false;
+
+    call.on("stream",(remoteStream)=>{
+
+        console.log("Remote stream received");
+
+        streamReceived = true;
+
+        remoteVideo.srcObject = remoteStream;
+
+        remoteVideo.autoplay = true;
+
+        remoteVideo.playsInline = true;
+
+        remoteVideo.muted = false;
+
+        remoteVideo.setAttribute("playsinline",true);
+
+        remoteVideo.setAttribute("webkit-playsinline",true);
+
+        const playPromise = remoteVideo.play();
+
+        if(playPromise !== undefined){
+
+            playPromise
+            .then(()=>{
+
+                console.log("Playback started");
+
+            })
+            .catch(err=>{
+
+                console.log("Autoplay blocked",err);
+
+            });
+
+        }
 
         setupView.classList.add("hidden");
 
@@ -438,7 +495,13 @@ function setupCall(call){
 
     call.on("close",()=>{
 
-        alert("Connection Closed");
+        console.log("Call closed");
+
+        if(streamReceived){
+
+            alert("Connection ended");
+
+        }
 
         stopEverything();
 
@@ -446,13 +509,27 @@ function setupCall(call){
 
     call.on("error",(err)=>{
 
-        console.error(err);
+        console.error("Call error:",err);
 
-        alert("Streaming Error");
+        alert("Streaming error");
 
         stopEverything();
 
     });
+
+    setTimeout(()=>{
+
+        if(!streamReceived){
+
+            console.log("No stream received");
+
+            setStatus("STREAM FAILED","red");
+
+            alert("Could not receive stream. Try same WiFi or Chrome browser.");
+
+        }
+
+    },15000);
 
 }
 
@@ -463,6 +540,7 @@ function generateQR(text){
     new QRCode(document.getElementById("qrcode"),{
 
         text:text,
+
         width:220,
         height:220
 
@@ -504,6 +582,7 @@ async function startQRScanner(){
                 backCamera = device.id;
 
             }
+
         }
 
         await html5QrCode.start(
@@ -533,9 +612,10 @@ async function startQRScanner(){
 
         console.error(err);
 
-        alert("Camera access denied");
+        alert("Camera permission denied");
 
     }
+
 }
 
 function copyID(){
@@ -565,6 +645,5 @@ function stopEverything(){
 }
 
 </script>
-
 </body>
 </html>
