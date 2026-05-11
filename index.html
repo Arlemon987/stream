@@ -1,20 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
 
-<title>Stream - P2P Screen Share</title>
+<title>Stream</title>
 
 <script src="https://cdn.tailwindcss.com"></script>
-
-<!-- PeerJS -->
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-
-<!-- QR Generator -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-
-<!-- QR Scanner -->
 <script src="https://unpkg.com/html5-qrcode"></script>
 
 <style>
@@ -24,9 +18,9 @@ body{
 }
 
 .glass{
-    background:rgba(255,255,255,0.05);
+    background:rgba(255,255,255,.05);
     backdrop-filter:blur(14px);
-    border:1px solid rgba(255,255,255,0.08);
+    border:1px solid rgba(255,255,255,.08);
 }
 
 #remoteVideo{
@@ -47,15 +41,6 @@ body{
     width:8px;
     height:8px;
     border-radius:999px;
-    display:inline-block;
-}
-
-input{
-    background:#0f172a;
-}
-
-#qr-reader video{
-    border-radius:14px;
 }
 
 </style>
@@ -67,7 +52,7 @@ input{
 
     <div class="flex items-center gap-2">
 
-        <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold">
+        <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold">
             S
         </div>
 
@@ -80,161 +65,178 @@ input{
     <div id="statusIndicator"
          class="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900 border border-slate-800 text-xs font-semibold">
 
-        <span class="status-dot bg-yellow-500"></span>
+        <div class="status-dot bg-yellow-500"></div>
         INITIALIZING
 
     </div>
 
 </header>
 
-<main class="flex-1 flex flex-col justify-center items-center p-4 max-w-6xl mx-auto w-full">
+<main class="flex-1 flex items-center justify-center p-4">
 
-    <div id="setupView" class="w-full max-w-md space-y-6">
+<div id="setupView" class="w-full max-w-md space-y-6">
 
-        <div class="text-center">
+    <div class="text-center">
 
-            <h2 class="text-4xl font-black gradient-text">
-                Instant Connect
-            </h2>
+        <h2 class="text-4xl font-black gradient-text">
+            Instant Connect
+        </h2>
 
-            <p class="text-slate-400 mt-2">
-                Share your screen between devices
-            </p>
+        <p class="text-slate-400 mt-2">
+            Live screen share between devices
+        </p>
 
-        </div>
+    </div>
 
-        <div class="glass rounded-3xl p-6 space-y-6">
+    <div class="glass rounded-3xl p-6 space-y-6">
 
-            <!-- HOST -->
+        <!-- HOST -->
 
-            <div class="space-y-4">
+        <div class="space-y-4">
 
-                <button id="hostBtn"
-                        onclick="startHosting()"
-                        class="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded-2xl font-bold text-lg">
-                    Start Broadcasting
-                </button>
+            <button id="hostBtn"
+                    onclick="startHosting()"
+                    class="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded-2xl font-bold text-lg">
 
-                <div id="hostInfo"
-                     class="hidden space-y-4">
+                Start Broadcasting
 
-                    <div class="bg-slate-900 rounded-2xl p-4 border border-blue-500/20">
+            </button>
 
-                        <p class="text-xs uppercase text-slate-500 mb-2">
-                            Share This Full ID
-                        </p>
+            <div id="hostInfo" class="hidden space-y-4">
 
-                        <div id="myPeerId"
-                             class="text-sm break-all font-mono text-blue-400">
-                        </div>
+                <div class="bg-slate-900 rounded-2xl p-4 break-all">
 
-                    </div>
+                    <p class="text-xs text-slate-500 uppercase mb-2">
+                        Full Share ID
+                    </p>
 
-                    <button onclick="copyID()"
-                            class="w-full py-3 rounded-xl bg-blue-600 font-bold">
-                        Copy ID
-                    </button>
-
-                    <!-- QR -->
-
-                    <div class="bg-white rounded-2xl p-4 flex justify-center">
-                        <div id="qrcode"></div>
+                    <div id="myPeerId"
+                         class="font-mono text-sm text-blue-400">
                     </div>
 
                 </div>
 
-            </div>
+                <button onclick="copyID()"
+                        class="w-full py-3 rounded-xl bg-blue-600 font-bold">
 
-            <div class="flex items-center gap-4">
+                    Copy ID
 
-                <div class="h-px bg-slate-800 flex-1"></div>
-
-                <span class="text-xs text-slate-500">
-                    OR
-                </span>
-
-                <div class="h-px bg-slate-800 flex-1"></div>
-
-            </div>
-
-            <!-- JOIN -->
-
-            <div class="space-y-4">
-
-                <input type="text"
-                       id="remotePeerId"
-                       placeholder="Paste Full Host ID"
-                       class="w-full rounded-xl border border-slate-700 px-4 py-3 outline-none focus:border-blue-500"/>
-
-                <button onclick="joinStream()"
-                        class="w-full bg-white text-black py-3 rounded-xl font-bold">
-                    Watch Stream
                 </button>
 
-                <button onclick="startQRScanner()"
-                        class="w-full bg-purple-600 py-3 rounded-xl font-bold">
-                    Scan QR Code
-                </button>
-
-                <div id="qr-reader"
-                     class="hidden overflow-hidden rounded-2xl"></div>
+                <div class="bg-white p-4 rounded-2xl flex justify-center">
+                    <div id="qrcode"></div>
+                </div>
 
             </div>
 
         </div>
 
+        <div class="flex items-center gap-4">
+
+            <div class="h-px bg-slate-800 flex-1"></div>
+
+            <span class="text-xs text-slate-500">
+                OR
+            </span>
+
+            <div class="h-px bg-slate-800 flex-1"></div>
+
+        </div>
+
+        <!-- JOIN -->
+
+        <div class="space-y-4">
+
+            <input id="remotePeerId"
+                   type="text"
+                   placeholder="Paste Host ID"
+                   class="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 outline-none focus:border-blue-500">
+
+            <button onclick="joinStream()"
+                    class="w-full bg-white text-black py-3 rounded-xl font-bold">
+
+                Watch Stream
+
+            </button>
+
+            <button onclick="startQRScanner()"
+                    class="w-full bg-purple-600 py-3 rounded-xl font-bold">
+
+                Scan QR Code
+
+            </button>
+
+            <div id="qr-reader"
+                 class="hidden overflow-hidden rounded-2xl"></div>
+
+        </div>
+
     </div>
 
-    <!-- VIDEO -->
+</div>
 
-    <div id="videoView"
-         class="hidden w-full flex flex-col items-center gap-6">
+<!-- VIDEO -->
 
-        <video id="remoteVideo"
-               autoplay
-               playsinline
-               controls></video>
+<div id="videoView"
+     class="hidden w-full max-w-6xl flex flex-col items-center gap-6">
 
-        <button onclick="stopEverything()"
-                class="px-8 py-3 rounded-full bg-red-500 text-white font-bold">
-            Stop
-        </button>
+    <video id="remoteVideo"
+           autoplay
+           playsinline
+           webkit-playsinline
+           controls></video>
 
-    </div>
+    <button onclick="stopEverything()"
+            class="px-8 py-3 rounded-full bg-red-500 font-bold">
+
+        Stop
+
+    </button>
+
+</div>
 
 </main>
 
 <script>
 
 const statusIndicator = document.getElementById("statusIndicator");
-const setupView = document.getElementById("setupView");
-const videoView = document.getElementById("videoView");
 
 const remoteVideo = document.getElementById("remoteVideo");
 
-const myPeerIdDisplay = document.getElementById("myPeerId");
+const setupView = document.getElementById("setupView");
+
+const videoView = document.getElementById("videoView");
 
 let localStream = null;
+
 let currentCall = null;
+
+let peerReady = false;
 
 function setStatus(text,color="green"){
 
     statusIndicator.innerHTML = `
-        <span class="status-dot bg-${color}-500"></span>
+        <div class="status-dot bg-${color}-500"></div>
         ${text}
     `;
 }
 
-function randomID(){
+function generateID(){
 
-    return "stream-" + Math.random().toString(36).substring(2,10);
+    return "stream-" + Math.random().toString(36).substring(2,12);
+
 }
 
-const peer = new Peer(randomID(),{
+const peer = new Peer(generateID(),{
 
     debug:2,
 
     config:{
+
+        sdpSemantics:'unified-plan',
+
+        iceTransportPolicy:'all',
+
         iceServers:[
 
             {
@@ -242,7 +244,7 @@ const peer = new Peer(randomID(),{
             },
 
             {
-                urls:'stun:openrelay.metered.ca:80'
+                urls:'stun:global.stun.twilio.com:3478'
             },
 
             {
@@ -255,20 +257,25 @@ const peer = new Peer(randomID(),{
                 urls:'turn:openrelay.metered.ca:443',
                 username:'openrelayproject',
                 credential:'openrelayproject'
+            },
+
+            {
+                urls:'turn:openrelay.metered.ca:443?transport=tcp',
+                username:'openrelayproject',
+                credential:'openrelayproject'
             }
 
         ]
     }
-
 });
 
 peer.on("open",(id)=>{
 
-    console.log("Peer Ready:",id);
+    peerReady = true;
 
     window.fullPeerId = id;
 
-    myPeerIdDisplay.innerText = id;
+    document.getElementById("myPeerId").innerText = id;
 
     setStatus("READY","green");
 
@@ -278,7 +285,7 @@ peer.on("error",(err)=>{
 
     console.error(err);
 
-    alert("Connection Error: " + err.type);
+    alert("Connection Error");
 
     setStatus("ERROR","red");
 
@@ -286,15 +293,24 @@ peer.on("error",(err)=>{
 
 peer.on("disconnected",()=>{
 
-    peer.reconnect();
-
     setStatus("RECONNECTING","yellow");
+
+    peer.reconnect();
 
 });
 
-peer.on("close",()=>{
+peer.on("call",(call)=>{
 
-    setStatus("CLOSED","red");
+    if(!localStream){
+
+        return;
+    }
+
+    currentCall = call;
+
+    call.answer(localStream);
+
+    setupCall(call);
 
 });
 
@@ -305,7 +321,7 @@ async function startHosting(){
         localStream = await navigator.mediaDevices.getDisplayMedia({
 
             video:{
-                frameRate:30
+                frameRate:24
             },
 
             audio:true
@@ -313,23 +329,14 @@ async function startHosting(){
         });
 
         document.getElementById("hostBtn").disabled = true;
+
         document.getElementById("hostBtn").innerText = "Broadcasting...";
 
         document.getElementById("hostInfo").classList.remove("hidden");
 
-        setStatus("WAITING FOR VIEWER","blue");
-
         generateQR(window.fullPeerId);
 
-        peer.on("call",(call)=>{
-
-            currentCall = call;
-
-            call.answer(localStream);
-
-            setupCall(call);
-
-        });
+        setStatus("WAITING FOR VIEWER","blue");
 
         localStream.getTracks().forEach(track=>{
 
@@ -345,12 +352,19 @@ async function startHosting(){
 
         console.error(err);
 
-        alert("Screen share permission denied");
+        alert("Screen sharing denied");
 
     }
 }
 
-function joinStream(){
+async function joinStream(){
+
+    if(!peerReady){
+
+        alert("Peer not ready yet");
+
+        return;
+    }
 
     const hostId = document.getElementById("remotePeerId").value.trim();
 
@@ -362,17 +376,20 @@ function joinStream(){
     }
 
     connectToHost(hostId);
+
 }
 
 function connectToHost(hostId){
 
     setStatus("CONNECTING","yellow");
 
-    const call = peer.call(hostId,new MediaStream());
+    const fakeStream = new MediaStream();
+
+    const call = peer.call(hostId,fakeStream);
 
     if(!call){
 
-        alert("Unable to connect");
+        alert("Failed to connect");
 
         return;
     }
@@ -380,15 +397,36 @@ function connectToHost(hostId){
     currentCall = call;
 
     setupCall(call);
+
 }
 
 function setupCall(call){
 
-    call.on("stream",(stream)=>{
+    call.on("stream",(remoteStream)=>{
 
-        remoteVideo.srcObject = stream;
+        remoteVideo.srcObject = remoteStream;
 
-        remoteVideo.play().catch(()=>{});
+        remoteVideo.muted = false;
+
+        remoteVideo.play()
+        .then(()=>{
+
+            console.log("Video started");
+
+        })
+        .catch(async()=>{
+
+            try{
+
+                await remoteVideo.play();
+
+            }catch(err){
+
+                console.log(err);
+
+            }
+
+        });
 
         setupView.classList.add("hidden");
 
@@ -418,22 +456,13 @@ function setupCall(call){
 
 }
 
-function copyID(){
-
-    navigator.clipboard.writeText(window.fullPeerId);
-
-    alert("ID copied");
-
-}
-
-function generateQR(id){
+function generateQR(text){
 
     document.getElementById("qrcode").innerHTML = "";
 
     new QRCode(document.getElementById("qrcode"),{
 
-        text:id,
-
+        text:text,
         width:220,
         height:220
 
@@ -441,7 +470,7 @@ function generateQR(id){
 
 }
 
-function startQRScanner(){
+async function startQRScanner(){
 
     const qrReader = document.getElementById("qr-reader");
 
@@ -449,42 +478,71 @@ function startQRScanner(){
 
     const html5QrCode = new Html5Qrcode("qr-reader");
 
-    Html5Qrcode.getCameras().then(devices=>{
+    try{
 
-        if(devices && devices.length){
+        const devices = await Html5Qrcode.getCameras();
 
-            html5QrCode.start(
+        if(!devices.length){
 
-                devices[0].id,
+            alert("No camera found");
 
-                {
-                    fps:10,
-                    qrbox:250
-                },
-
-                (decodedText)=>{
-
-                    document.getElementById("remotePeerId").value = decodedText;
-
-                    html5QrCode.stop();
-
-                    qrReader.classList.add("hidden");
-
-                    connectToHost(decodedText);
-
-                }
-
-            );
-
+            return;
         }
 
-    }).catch(err=>{
+        let backCamera = devices[0].id;
+
+        for(const device of devices){
+
+            const label = device.label.toLowerCase();
+
+            if(
+                label.includes("back") ||
+                label.includes("rear") ||
+                label.includes("environment")
+            ){
+
+                backCamera = device.id;
+
+            }
+        }
+
+        await html5QrCode.start(
+
+            backCamera,
+
+            {
+                fps:10,
+                qrbox:250
+            },
+
+            async(decodedText)=>{
+
+                document.getElementById("remotePeerId").value = decodedText;
+
+                await html5QrCode.stop();
+
+                qrReader.classList.add("hidden");
+
+                connectToHost(decodedText);
+
+            }
+
+        );
+
+    }catch(err){
 
         console.error(err);
 
         alert("Camera access denied");
 
-    });
+    }
+}
+
+function copyID(){
+
+    navigator.clipboard.writeText(window.fullPeerId);
+
+    alert("Copied");
 
 }
 
