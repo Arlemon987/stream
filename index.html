@@ -1,60 +1,185 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Stream Share</title>
-
-<link rel="stylesheet" href="style.css"/>
-
-<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stream - Local P2P Screen Share</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        #remoteVideo {
+            background: #000;
+            width: 100%;
+            max-height: 80vh;
+            border-radius: 12px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+        .gradient-text {
+            background: linear-gradient(90deg, #60a5fa, #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
 </head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
 
-<body>
+    <!-- Header -->
+    <header class="p-6 flex justify-between items-center max-w-6xl mx-auto w-full">
+        <div class="flex items-center gap-2">
+            <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold">S</div>
+            <h1 class="text-xl font-bold tracking-tight uppercase">Stream<span class="text-blue-500">.</span></h1>
+        </div>
+        <div id="statusIndicator" class="px-3 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-400">
+            DISCONNECTED
+        </div>
+    </header>
 
-<div class="container">
+    <main class="flex-1 flex flex-col items-center justify-center p-4 max-w-6xl mx-auto w-full gap-8">
+        
+        <!-- Setup Views -->
+        <div id="setupView" class="w-full max-w-md space-y-6">
+            <div class="text-center space-y-2">
+                <h2 class="text-3xl font-bold gradient-text">Share your screen.</h2>
+                <p class="text-slate-400">P2P connection via WebRTC for ultra-low latency.</p>
+            </div>
 
-<h1>Stream Share</h1>
+            <div class="glass p-6 rounded-2xl space-y-4">
+                <div class="space-y-2">
+                    <label class="text-sm font-semibold text-slate-300">Choose Action</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button onclick="startHosting()" id="hostBtn" class="bg-blue-600 hover:bg-blue-500 py-3 rounded-xl font-bold transition-all transform active:scale-95">
+                            Broadcast
+                        </button>
+                        <button onclick="showJoinInput()" id="joinBtn" class="bg-slate-800 hover:bg-slate-700 py-3 rounded-xl font-bold transition-all transform active:scale-95">
+                            Watch
+                        </button>
+                    </div>
+                </div>
 
-<div class="card">
+                <div id="roomControls" class="hidden space-y-4 pt-4 border-t border-white/10">
+                    <div class="space-y-2">
+                        <label class="text-sm text-slate-400">Manual Signaling (Paste Offer/Answer)</label>
+                        <textarea id="sdpBox" class="w-full h-32 bg-slate-900 border border-slate-700 rounded-lg p-3 text-xs font-mono" placeholder="Signaling data appears here..."></textarea>
+                    </div>
+                    <button id="actionBtn" class="w-full bg-indigo-600 py-3 rounded-xl font-bold">Process Data</button>
+                </div>
+            </div>
+            
+            <div class="text-center">
+                <p class="text-xs text-slate-500">Works best on local networks. Domain: <span class="text-blue-400">stream.asiqur.xyz</span></p>
+            </div>
+        </div>
 
-<h2>Your ID</h2>
+        <!-- Video View (Hidden initially) -->
+        <div id="videoView" class="hidden w-full flex flex-col items-center gap-4">
+            <video id="remoteVideo" autoplay playsinline controls></video>
+            <div class="flex gap-4">
+                <button onclick="location.reload()" class="px-6 py-2 bg-red-500/20 text-red-400 border border-red-500/30 rounded-full hover:bg-red-500/30 transition-all">
+                    Stop Session
+                </div>
+            </div>
+        </div>
 
-<div id="myId">Connecting...</div>
+    </main>
 
-<div id="qrcode"></div>
+    <script>
+        let localStream;
+        let peerConnection;
+        const configuration = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' }
+            ]
+        };
 
-</div>
+        const setupView = document.getElementById('setupView');
+        const videoView = document.getElementById('videoView');
+        const remoteVideo = document.getElementById('remoteVideo');
+        const sdpBox = document.getElementById('sdpBox');
+        const actionBtn = document.getElementById('actionBtn');
+        const statusIndicator = document.getElementById('statusIndicator');
 
-<div class="card">
+        // Initial Peer Connection setup
+        function initPeerConnection() {
+            peerConnection = new RTCPeerConnection(configuration);
 
-<h2>Connect to Device</h2>
+            peerConnection.onicecandidate = event => {
+                if (event.candidate) {
+                    // Update box as candidates are gathered
+                    sdpBox.value = JSON.stringify(peerConnection.localDescription);
+                }
+            };
 
-<input type="text" id="remoteId" placeholder="Enter Device ID"/>
+            peerConnection.ontrack = event => {
+                console.log("Track received");
+                remoteVideo.srcObject = event.streams[0];
+                showVideoView();
+            };
 
-<button id="connectBtn">Connect & View</button>
+            peerConnection.onconnectionstatechange = () => {
+                statusIndicator.innerText = peerConnection.connectionState.toUpperCase();
+                if(peerConnection.connectionState === 'connected') {
+                    statusIndicator.className = "px-3 py-1 rounded-full text-xs font-medium bg-green-500/20 text-green-400";
+                }
+            };
+        }
 
-</div>
+        async function startHosting() {
+            try {
+                localStream = await navigator.mediaDevices.getDisplayMedia({
+                    video: { cursor: "always" },
+                    audio: true
+                });
+                
+                initPeerConnection();
+                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
-<div class="card">
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
 
-<h2>Screen Share</h2>
+                document.getElementById('roomControls').classList.remove('hidden');
+                sdpBox.value = JSON.stringify(offer);
+                actionBtn.innerText = "Accept Answer from Viewer";
+                
+                actionBtn.onclick = async () => {
+                    const answer = JSON.parse(sdpBox.value);
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+                    alert("Connection established!");
+                };
 
-<button id="shareBtn">Start Sharing</button>
-<button id="stopBtn">Stop Sharing</button>
+            } catch (err) {
+                console.error("Error: " + err);
+                alert("Could not share screen. Ensure you are on HTTPS.");
+            }
+        }
 
-</div>
+        function showJoinInput() {
+            initPeerConnection();
+            document.getElementById('roomControls').classList.remove('hidden');
+            sdpBox.value = "";
+            sdpBox.placeholder = "Paste the Host's Offer here...";
+            actionBtn.innerText = "Generate Answer";
 
-<div class="video-container">
+            actionBtn.onclick = async () => {
+                const offer = JSON.parse(sdpBox.value);
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+                
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                
+                sdpBox.value = JSON.stringify(answer);
+                alert("Now copy the data in the box and send it back to the Host!");
+            };
+        }
 
-<video id="remoteVideo" autoplay playsinline></video>
-
-</div>
-
-</div>
-
-<script src="script.js"></script>
-
+        function showVideoView() {
+            setupView.classList.add('hidden');
+            videoView.classList.remove('hidden');
+        }
+    </script>
 </body>
 </html>
