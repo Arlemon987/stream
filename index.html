@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Stream Share</title>
+
+<link rel="stylesheet" href="style.css"/>
+
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>Stream Share</h1>
+
+<div class="card">
+
+<h2>Your ID</h2>
+
+<div id="myId">Connecting...</div>
+
+<div id="qrcode"></div>
+
+</div>
+
+<div class="card">
+
+<h2>Connect to Device</h2>
+
+<input type="text" id="remoteId" placeholder="Enter Device ID"/>
+
+<button id="connectBtn">Connect & View</button>
+
+</div>
+
+<div class="card">
+
+<h2>Screen Share</h2>
+
+<button id="shareBtn">Start Sharing</button>
+<button id="stopBtn">Stop Sharing</button>
+
+</div>
+
+<div class="video-container">
+
+<video id="remoteVideo" autoplay playsinline></video>
+
+</div>
+
+</div>
+
+<script src="script.js"></script>
+
+</body>
+</html>
