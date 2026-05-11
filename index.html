@@ -1,219 +1,347 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stream - Simple P2P Share</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- PeerJS for automated signaling -->
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <style>
-        .glass {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        #remoteVideo {
-            background: #000;
-            width: 100%;
-            max-height: 75vh;
-            border-radius: 16px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-        }
-        .gradient-text {
-            background: linear-gradient(90deg, #60a5fa, #a855f7);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .status-dot {
-            height: 8px;
-            width: 8px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 6px;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Stream - Simple P2P Share</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
+<style>
+    body{
+        background:#020617;
+    }
+
+    .glass{
+        background:rgba(255,255,255,0.05);
+        backdrop-filter:blur(12px);
+        border:1px solid rgba(255,255,255,0.08);
+    }
+
+    #remoteVideo{
+        width:100%;
+        max-height:75vh;
+        background:black;
+        border-radius:18px;
+        object-fit:contain;
+    }
+
+    .gradient-text{
+        background:linear-gradient(90deg,#60a5fa,#a855f7);
+        -webkit-background-clip:text;
+        -webkit-text-fill-color:transparent;
+    }
+
+    .status-dot{
+        width:8px;
+        height:8px;
+        border-radius:999px;
+        display:inline-block;
+    }
+</style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
 
-    <!-- Header -->
-    <header class="p-6 flex justify-between items-center max-w-5xl mx-auto w-full">
-        <div class="flex items-center gap-2">
-            <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold shadow-lg shadow-blue-500/20">S</div>
-            <h1 class="text-xl font-bold tracking-tight uppercase">Stream<span class="text-blue-500">.</span></h1>
+<body class="text-white min-h-screen flex flex-col">
+
+<header class="p-6 flex justify-between items-center max-w-5xl mx-auto w-full">
+
+    <div class="flex items-center gap-2">
+        <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold">
+            S
         </div>
-        <div id="statusIndicator" class="flex items-center px-4 py-1.5 rounded-full text-xs font-semibold bg-slate-900 border border-slate-800 transition-all">
-            <span class="status-dot bg-slate-500"></span>
-            INITIALIZING...
+
+        <h1 class="text-xl font-bold uppercase">
+            Stream<span class="text-blue-500">.</span>
+        </h1>
+    </div>
+
+    <div id="statusIndicator"
+         class="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900 border border-slate-800 text-xs font-semibold">
+        <span class="status-dot bg-yellow-500"></span>
+        INITIALIZING
+    </div>
+
+</header>
+
+<main class="flex-1 flex flex-col justify-center items-center p-4 max-w-5xl mx-auto w-full">
+
+    <div id="setupView" class="w-full max-w-md space-y-6">
+
+        <div class="text-center">
+            <h2 class="text-4xl font-black gradient-text">
+                Instant Connect
+            </h2>
+
+            <p class="text-slate-400 mt-2">
+                Share your screen across devices
+            </p>
         </div>
-    </header>
 
-    <main class="flex-1 flex flex-col items-center justify-center p-4 max-w-5xl mx-auto w-full gap-8">
-        
-        <!-- Setup Views -->
-        <div id="setupView" class="w-full max-w-md space-y-6">
-            <div class="text-center space-y-2">
-                <h2 class="text-4xl font-extrabold gradient-text">Instant Connect.</h2>
-                <p class="text-slate-400">Share your screen across devices with a simple ID.</p>
-            </div>
+        <div class="glass rounded-3xl p-8 space-y-6">
 
-            <div class="glass p-8 rounded-3xl space-y-6 shadow-2xl">
-                <!-- Option 1: Broadcast -->
-                <div id="hostSection" class="space-y-4">
-                    <button onclick="startHosting()" id="hostBtn" class="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded-2xl font-bold text-lg transition-all transform active:scale-95 shadow-lg shadow-blue-600/20">
-                        Start Broadcasting
+            <!-- HOST -->
+            <div class="space-y-4">
+
+                <button id="hostBtn"
+                        onclick="startHosting()"
+                        class="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded-2xl font-bold text-lg">
+                    Start Broadcasting
+                </button>
+
+                <div id="idDisplay"
+                     class="hidden bg-slate-900 border border-blue-500/30 rounded-2xl p-4 text-center">
+
+                    <p class="text-xs text-slate-500 uppercase mb-2">
+                        Your Full Share ID
+                    </p>
+
+                    <div id="myPeerId"
+                         class="text-sm break-all font-mono text-blue-400">
+                    </div>
+
+                    <button onclick="copyID()"
+                            class="mt-4 px-4 py-2 bg-blue-600 rounded-xl text-sm font-bold">
+                        Copy ID
                     </button>
-                    <div id="idDisplay" class="hidden text-center p-4 bg-slate-900 rounded-xl border border-blue-500/30">
-                        <p class="text-xs text-slate-500 uppercase font-bold mb-1">Your Share ID</p>
-                        <p id="myPeerId" class="text-2xl font-mono tracking-widest text-blue-400 font-bold">---</p>
-                    </div>
+
                 </div>
 
-                <div class="flex items-center gap-4 py-2">
-                    <div class="h-px bg-slate-800 flex-1"></div>
-                    <span class="text-xs text-slate-600 font-bold uppercase">OR</span>
-                    <div class="h-px bg-slate-800 flex-1"></div>
-                </div>
+            </div>
 
-                <!-- Option 2: Watch -->
-                <div id="joinSection" class="space-y-4">
-                    <div class="flex gap-2">
-                        <input type="text" id="remotePeerId" placeholder="Enter Host ID" 
-                               class="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 focus:border-blue-500 focus:outline-none transition-all font-mono tracking-widest uppercase">
-                        <button onclick="joinStream()" class="bg-slate-100 text-slate-950 px-6 py-3 rounded-xl font-bold hover:bg-white transition-all active:scale-95">
-                            Watch
-                        </button>
-                    </div>
-                </div>
+            <div class="flex items-center gap-4">
+                <div class="h-px bg-slate-800 flex-1"></div>
+                <span class="text-xs text-slate-500">OR</span>
+                <div class="h-px bg-slate-800 flex-1"></div>
             </div>
-            
-            <!-- Simplified Connection Guide -->
-            <div class="grid grid-cols-2 gap-4">
-                <div class="glass p-4 rounded-2xl text-center">
-                    <p class="text-blue-400 font-bold text-lg mb-1">1</p>
-                    <p class="text-[10px] text-slate-400 leading-tight uppercase font-semibold">Click Broadcast & share your ID</p>
-                </div>
-                <div class="glass p-4 rounded-2xl text-center">
-                    <p class="text-purple-400 font-bold text-lg mb-1">2</p>
-                    <p class="text-[10px] text-slate-400 leading-tight uppercase font-semibold">Viewer enters ID & starts watching</p>
-                </div>
+
+            <!-- VIEWER -->
+            <div class="space-y-4">
+
+                <input type="text"
+                       id="remotePeerId"
+                       placeholder="Paste Full Host ID"
+                       class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 outline-none focus:border-blue-500">
+
+                <button onclick="joinStream()"
+                        class="w-full bg-white text-black py-3 rounded-xl font-bold">
+                    Watch Stream
+                </button>
+
             </div>
+
         </div>
 
-        <!-- Video View -->
-        <div id="videoView" class="hidden w-full flex flex-col items-center gap-6">
-            <div class="relative w-full">
-                <video id="remoteVideo" autoplay playsinline controls></video>
-                <div class="absolute top-4 left-4 bg-black/50 backdrop-blur-md px-3 py-1 rounded-lg border border-white/10 flex items-center gap-2">
-                    <span class="status-dot bg-green-500 animate-pulse"></span>
-                    <span class="text-[10px] font-bold uppercase">LIVE STREAM</span>
-                </div>
-            </div>
-            <button onclick="location.reload()" class="group flex items-center gap-2 px-8 py-3 bg-red-500/10 text-red-500 border border-red-500/20 rounded-full hover:bg-red-500 hover:text-white transition-all font-bold">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                Stop Streaming
-            </button>
-        </div>
+    </div>
 
-    </main>
+    <!-- VIDEO -->
+    <div id="videoView"
+         class="hidden w-full flex flex-col items-center gap-6">
 
-    <footer class="p-6 text-center text-slate-600 text-[10px] uppercase tracking-widest">
-        stream.asiqur.xyz • Encrypted P2P
-    </footer>
+        <video id="remoteVideo"
+               autoplay
+               playsinline
+               controls></video>
 
-    <script>
-        const statusIndicator = document.getElementById('statusIndicator');
-        const setupView = document.getElementById('setupView');
-        const videoView = document.getElementById('videoView');
-        const remoteVideo = document.getElementById('remoteVideo');
-        const myPeerIdDisplay = document.getElementById('myPeerId');
-        const idDisplay = document.getElementById('idDisplay');
-        const remotePeerInput = document.getElementById('remotePeerId');
+        <button onclick="stopEverything()"
+                class="px-8 py-3 rounded-full bg-red-500 text-white font-bold">
+            Stop
+        </button>
 
-        // Initialize PeerJS
-        // It creates a random ID and uses PeerJS public servers for the "handshake"
-        const peer = new Peer({
-            config: {
-                'iceServers': [
-                    { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'stun:stun1.l.google.com:19302' }
-                ]
+    </div>
+
+</main>
+
+<script>
+
+const statusIndicator = document.getElementById("statusIndicator");
+const setupView = document.getElementById("setupView");
+const videoView = document.getElementById("videoView");
+const remoteVideo = document.getElementById("remoteVideo");
+
+const myPeerIdDisplay = document.getElementById("myPeerId");
+const idDisplay = document.getElementById("idDisplay");
+
+let localStream = null;
+let currentCall = null;
+
+function setStatus(text,color="green"){
+    statusIndicator.innerHTML = `
+        <span class="status-dot bg-${color}-500"></span>
+        ${text}
+    `;
+}
+
+const peer = new Peer({
+    debug:2,
+    config:{
+        iceServers:[
+            {
+                urls:'stun:stun.l.google.com:19302'
+            },
+            {
+                urls:'stun:global.stun.twilio.com:3478'
             }
+        ]
+    }
+});
+
+peer.on("open",(id)=>{
+
+    console.log("Peer Ready:",id);
+
+    window.fullPeerId = id;
+
+    myPeerIdDisplay.innerText = id;
+
+    setStatus("READY","green");
+});
+
+peer.on("error",(err)=>{
+
+    console.error(err);
+
+    alert("Connection Error: " + err.type);
+
+    setStatus("ERROR","red");
+});
+
+peer.on("disconnected",()=>{
+
+    setStatus("RECONNECTING","yellow");
+
+    peer.reconnect();
+});
+
+peer.on("close",()=>{
+
+    setStatus("CLOSED","red");
+});
+
+async function startHosting(){
+
+    try{
+
+        localStream = await navigator.mediaDevices.getDisplayMedia({
+            video:true,
+            audio:true
         });
 
-        peer.on('open', (id) => {
-            console.log('My peer ID is: ' + id);
-            statusIndicator.innerHTML = '<span class="status-dot bg-green-500"></span> READY';
-            // We use a short version of the ID for easier typing
-            myPeerIdDisplay.innerText = id.substring(0, 6).toUpperCase();
-            window.fullId = id;
+        idDisplay.classList.remove("hidden");
+
+        document.getElementById("hostBtn").disabled = true;
+        document.getElementById("hostBtn").innerText = "Broadcasting...";
+
+        setStatus("WAITING FOR VIEWER","blue");
+
+        peer.on("call",(call)=>{
+
+            currentCall = call;
+
+            call.answer(localStream);
+
+            setupCallEvents(call);
         });
 
-        peer.on('error', (err) => {
-            console.error(err);
-            statusIndicator.innerHTML = '<span class="status-dot bg-red-500"></span> ERROR';
-            alert("PeerJS Error: " + err.type);
+        localStream.getVideoTracks()[0].addEventListener("ended",()=>{
+            stopEverything();
         });
 
-        // --- BROADCASTER LOGIC ---
-        async function startHosting() {
-            try {
-                const stream = await navigator.mediaDevices.getDisplayMedia({
-                    video: { cursor: "always" },
-                    audio: true
-                });
+    }catch(err){
 
-                idDisplay.classList.remove('hidden');
-                document.getElementById('hostBtn').innerText = "Broadcasting...";
-                document.getElementById('hostBtn').disabled = true;
-                
-                // When someone calls us, send them the stream
-                peer.on('call', (call) => {
-                    call.answer(stream);
-                    handleCall(call);
-                });
+        console.error(err);
 
-                statusIndicator.innerHTML = '<span class="status-dot bg-blue-500 animate-pulse"></span> WAITING FOR VIEWER';
+        alert("Screen sharing permission denied");
 
-            } catch (err) {
-                alert("To share your screen, you must allow browser permissions and be on HTTPS.");
-            }
+    }
+}
+
+function joinStream(){
+
+    const hostId = document.getElementById("remotePeerId").value.trim();
+
+    if(!hostId){
+
+        alert("Enter full Host ID");
+
+        return;
+    }
+
+    setStatus("CONNECTING","yellow");
+
+    const call = peer.call(hostId,null, {
+        metadata:{
+            viewer:true
         }
+    });
 
-        // --- VIEWER LOGIC ---
-        function joinStream() {
-            const hostId = remotePeerInput.value.trim().toLowerCase();
-            if (!hostId) return alert("Please enter the Host's ID");
+    if(!call){
 
-            statusIndicator.innerHTML = '<span class="status-dot bg-yellow-500 animate-pulse"></span> CONNECTING...';
-            
-            // PeerJS IDs are long, but if the user entered 6 chars, we'd need the full ID.
-            // For this simple app, we expect the user to enter the full ID or we use 
-            // a prefix logic. To keep it simple, the host should just share the full ID or the short one if we match it.
-            
-            // We'll call the host. We don't need a local stream to watch.
-            const call = peer.call(hostId, null); 
-            
-            if (!call) {
-                alert("Could not reach host. Make sure the ID is correct.");
-                return;
-            }
+        alert("Failed to connect");
 
-            handleCall(call);
-        }
+        return;
+    }
 
-        function handleCall(call) {
-            call.on('stream', (remoteStream) => {
-                remoteVideo.srcObject = remoteStream;
-                setupView.classList.add('hidden');
-                videoView.classList.remove('hidden');
-                statusIndicator.innerHTML = '<span class="status-dot bg-green-500"></span> CONNECTED';
-            });
+    currentCall = call;
 
-            call.on('close', () => {
-                location.reload();
-            });
-        }
-    </script>
+    setupCallEvents(call);
+}
+
+function setupCallEvents(call){
+
+    call.on("stream",(remoteStream)=>{
+
+        remoteVideo.srcObject = remoteStream;
+
+        remoteVideo.play().catch(()=>{});
+
+        setupView.classList.add("hidden");
+        videoView.classList.remove("hidden");
+
+        setStatus("CONNECTED","green");
+    });
+
+    call.on("close",()=>{
+
+        alert("Connection closed");
+
+        stopEverything();
+    });
+
+    call.on("error",(err)=>{
+
+        console.error(err);
+
+        alert("Stream Error");
+
+        stopEverything();
+    });
+}
+
+function copyID(){
+
+    navigator.clipboard.writeText(window.fullPeerId);
+
+    alert("ID copied");
+}
+
+function stopEverything(){
+
+    if(currentCall){
+
+        currentCall.close();
+    }
+
+    if(localStream){
+
+        localStream.getTracks().forEach(track=>track.stop());
+    }
+
+    location.reload();
+}
+
+</script>
+
 </body>
 </html>
