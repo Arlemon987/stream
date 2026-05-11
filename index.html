@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stream - Local P2P Screen Share</title>
+    <title>Stream - Simple P2P Share</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- PeerJS for automated signaling -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         .glass {
             background: rgba(255, 255, 255, 0.05);
@@ -14,171 +16,203 @@
         #remoteVideo {
             background: #000;
             width: 100%;
-            max-height: 80vh;
-            border-radius: 12px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            max-height: 75vh;
+            border-radius: 16px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         }
         .gradient-text {
             background: linear-gradient(90deg, #60a5fa, #a855f7);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
+        .status-dot {
+            height: 8px;
+            width: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+        }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
 
     <!-- Header -->
-    <header class="p-6 flex justify-between items-center max-w-6xl mx-auto w-full">
+    <header class="p-6 flex justify-between items-center max-w-5xl mx-auto w-full">
         <div class="flex items-center gap-2">
-            <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold">S</div>
+            <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold shadow-lg shadow-blue-500/20">S</div>
             <h1 class="text-xl font-bold tracking-tight uppercase">Stream<span class="text-blue-500">.</span></h1>
         </div>
-        <div id="statusIndicator" class="px-3 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-400">
-            DISCONNECTED
+        <div id="statusIndicator" class="flex items-center px-4 py-1.5 rounded-full text-xs font-semibold bg-slate-900 border border-slate-800 transition-all">
+            <span class="status-dot bg-slate-500"></span>
+            INITIALIZING...
         </div>
     </header>
 
-    <main class="flex-1 flex flex-col items-center justify-center p-4 max-w-6xl mx-auto w-full gap-8">
+    <main class="flex-1 flex flex-col items-center justify-center p-4 max-w-5xl mx-auto w-full gap-8">
         
         <!-- Setup Views -->
         <div id="setupView" class="w-full max-w-md space-y-6">
             <div class="text-center space-y-2">
-                <h2 class="text-3xl font-bold gradient-text">Share your screen.</h2>
-                <p class="text-slate-400">P2P connection via WebRTC for ultra-low latency.</p>
+                <h2 class="text-4xl font-extrabold gradient-text">Instant Connect.</h2>
+                <p class="text-slate-400">Share your screen across devices with a simple ID.</p>
             </div>
 
-            <div class="glass p-6 rounded-2xl space-y-4">
-                <div class="space-y-2">
-                    <label class="text-sm font-semibold text-slate-300">Choose Action</label>
-                    <div class="grid grid-cols-2 gap-3">
-                        <button onclick="startHosting()" id="hostBtn" class="bg-blue-600 hover:bg-blue-500 py-3 rounded-xl font-bold transition-all transform active:scale-95">
-                            Broadcast
-                        </button>
-                        <button onclick="showJoinInput()" id="joinBtn" class="bg-slate-800 hover:bg-slate-700 py-3 rounded-xl font-bold transition-all transform active:scale-95">
+            <div class="glass p-8 rounded-3xl space-y-6 shadow-2xl">
+                <!-- Option 1: Broadcast -->
+                <div id="hostSection" class="space-y-4">
+                    <button onclick="startHosting()" id="hostBtn" class="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded-2xl font-bold text-lg transition-all transform active:scale-95 shadow-lg shadow-blue-600/20">
+                        Start Broadcasting
+                    </button>
+                    <div id="idDisplay" class="hidden text-center p-4 bg-slate-900 rounded-xl border border-blue-500/30">
+                        <p class="text-xs text-slate-500 uppercase font-bold mb-1">Your Share ID</p>
+                        <p id="myPeerId" class="text-2xl font-mono tracking-widest text-blue-400 font-bold">---</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-4 py-2">
+                    <div class="h-px bg-slate-800 flex-1"></div>
+                    <span class="text-xs text-slate-600 font-bold uppercase">OR</span>
+                    <div class="h-px bg-slate-800 flex-1"></div>
+                </div>
+
+                <!-- Option 2: Watch -->
+                <div id="joinSection" class="space-y-4">
+                    <div class="flex gap-2">
+                        <input type="text" id="remotePeerId" placeholder="Enter Host ID" 
+                               class="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 focus:border-blue-500 focus:outline-none transition-all font-mono tracking-widest uppercase">
+                        <button onclick="joinStream()" class="bg-slate-100 text-slate-950 px-6 py-3 rounded-xl font-bold hover:bg-white transition-all active:scale-95">
                             Watch
                         </button>
                     </div>
                 </div>
-
-                <div id="roomControls" class="hidden space-y-4 pt-4 border-t border-white/10">
-                    <div class="space-y-2">
-                        <label class="text-sm text-slate-400">Manual Signaling (Paste Offer/Answer)</label>
-                        <textarea id="sdpBox" class="w-full h-32 bg-slate-900 border border-slate-700 rounded-lg p-3 text-xs font-mono" placeholder="Signaling data appears here..."></textarea>
-                    </div>
-                    <button id="actionBtn" class="w-full bg-indigo-600 py-3 rounded-xl font-bold">Process Data</button>
-                </div>
             </div>
             
-            <div class="text-center">
-                <p class="text-xs text-slate-500">Works best on local networks. Domain: <span class="text-blue-400">stream.asiqur.xyz</span></p>
+            <!-- Simplified Connection Guide -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="glass p-4 rounded-2xl text-center">
+                    <p class="text-blue-400 font-bold text-lg mb-1">1</p>
+                    <p class="text-[10px] text-slate-400 leading-tight uppercase font-semibold">Click Broadcast & share your ID</p>
+                </div>
+                <div class="glass p-4 rounded-2xl text-center">
+                    <p class="text-purple-400 font-bold text-lg mb-1">2</p>
+                    <p class="text-[10px] text-slate-400 leading-tight uppercase font-semibold">Viewer enters ID & starts watching</p>
+                </div>
             </div>
         </div>
 
-        <!-- Video View (Hidden initially) -->
-        <div id="videoView" class="hidden w-full flex flex-col items-center gap-4">
-            <video id="remoteVideo" autoplay playsinline controls></video>
-            <div class="flex gap-4">
-                <button onclick="location.reload()" class="px-6 py-2 bg-red-500/20 text-red-400 border border-red-500/30 rounded-full hover:bg-red-500/30 transition-all">
-                    Stop Session
+        <!-- Video View -->
+        <div id="videoView" class="hidden w-full flex flex-col items-center gap-6">
+            <div class="relative w-full">
+                <video id="remoteVideo" autoplay playsinline controls></video>
+                <div class="absolute top-4 left-4 bg-black/50 backdrop-blur-md px-3 py-1 rounded-lg border border-white/10 flex items-center gap-2">
+                    <span class="status-dot bg-green-500 animate-pulse"></span>
+                    <span class="text-[10px] font-bold uppercase">LIVE STREAM</span>
                 </div>
             </div>
+            <button onclick="location.reload()" class="group flex items-center gap-2 px-8 py-3 bg-red-500/10 text-red-500 border border-red-500/20 rounded-full hover:bg-red-500 hover:text-white transition-all font-bold">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                Stop Streaming
+            </button>
         </div>
 
     </main>
 
-    <script>
-        let localStream;
-        let peerConnection;
-        const configuration = {
-            iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' }
-            ]
-        };
+    <footer class="p-6 text-center text-slate-600 text-[10px] uppercase tracking-widest">
+        stream.asiqur.xyz • Encrypted P2P
+    </footer>
 
+    <script>
+        const statusIndicator = document.getElementById('statusIndicator');
         const setupView = document.getElementById('setupView');
         const videoView = document.getElementById('videoView');
         const remoteVideo = document.getElementById('remoteVideo');
-        const sdpBox = document.getElementById('sdpBox');
-        const actionBtn = document.getElementById('actionBtn');
-        const statusIndicator = document.getElementById('statusIndicator');
+        const myPeerIdDisplay = document.getElementById('myPeerId');
+        const idDisplay = document.getElementById('idDisplay');
+        const remotePeerInput = document.getElementById('remotePeerId');
 
-        // Initial Peer Connection setup
-        function initPeerConnection() {
-            peerConnection = new RTCPeerConnection(configuration);
+        // Initialize PeerJS
+        // It creates a random ID and uses PeerJS public servers for the "handshake"
+        const peer = new Peer({
+            config: {
+                'iceServers': [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' }
+                ]
+            }
+        });
 
-            peerConnection.onicecandidate = event => {
-                if (event.candidate) {
-                    // Update box as candidates are gathered
-                    sdpBox.value = JSON.stringify(peerConnection.localDescription);
-                }
-            };
+        peer.on('open', (id) => {
+            console.log('My peer ID is: ' + id);
+            statusIndicator.innerHTML = '<span class="status-dot bg-green-500"></span> READY';
+            // We use a short version of the ID for easier typing
+            myPeerIdDisplay.innerText = id.substring(0, 6).toUpperCase();
+            window.fullId = id;
+        });
 
-            peerConnection.ontrack = event => {
-                console.log("Track received");
-                remoteVideo.srcObject = event.streams[0];
-                showVideoView();
-            };
+        peer.on('error', (err) => {
+            console.error(err);
+            statusIndicator.innerHTML = '<span class="status-dot bg-red-500"></span> ERROR';
+            alert("PeerJS Error: " + err.type);
+        });
 
-            peerConnection.onconnectionstatechange = () => {
-                statusIndicator.innerText = peerConnection.connectionState.toUpperCase();
-                if(peerConnection.connectionState === 'connected') {
-                    statusIndicator.className = "px-3 py-1 rounded-full text-xs font-medium bg-green-500/20 text-green-400";
-                }
-            };
-        }
-
+        // --- BROADCASTER LOGIC ---
         async function startHosting() {
             try {
-                localStream = await navigator.mediaDevices.getDisplayMedia({
+                const stream = await navigator.mediaDevices.getDisplayMedia({
                     video: { cursor: "always" },
                     audio: true
                 });
-                
-                initPeerConnection();
-                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
-                const offer = await peerConnection.createOffer();
-                await peerConnection.setLocalDescription(offer);
-
-                document.getElementById('roomControls').classList.remove('hidden');
-                sdpBox.value = JSON.stringify(offer);
-                actionBtn.innerText = "Accept Answer from Viewer";
+                idDisplay.classList.remove('hidden');
+                document.getElementById('hostBtn').innerText = "Broadcasting...";
+                document.getElementById('hostBtn').disabled = true;
                 
-                actionBtn.onclick = async () => {
-                    const answer = JSON.parse(sdpBox.value);
-                    await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-                    alert("Connection established!");
-                };
+                // When someone calls us, send them the stream
+                peer.on('call', (call) => {
+                    call.answer(stream);
+                    handleCall(call);
+                });
+
+                statusIndicator.innerHTML = '<span class="status-dot bg-blue-500 animate-pulse"></span> WAITING FOR VIEWER';
 
             } catch (err) {
-                console.error("Error: " + err);
-                alert("Could not share screen. Ensure you are on HTTPS.");
+                alert("To share your screen, you must allow browser permissions and be on HTTPS.");
             }
         }
 
-        function showJoinInput() {
-            initPeerConnection();
-            document.getElementById('roomControls').classList.remove('hidden');
-            sdpBox.value = "";
-            sdpBox.placeholder = "Paste the Host's Offer here...";
-            actionBtn.innerText = "Generate Answer";
+        // --- VIEWER LOGIC ---
+        function joinStream() {
+            const hostId = remotePeerInput.value.trim().toLowerCase();
+            if (!hostId) return alert("Please enter the Host's ID");
 
-            actionBtn.onclick = async () => {
-                const offer = JSON.parse(sdpBox.value);
-                await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-                
-                const answer = await peerConnection.createAnswer();
-                await peerConnection.setLocalDescription(answer);
-                
-                sdpBox.value = JSON.stringify(answer);
-                alert("Now copy the data in the box and send it back to the Host!");
-            };
+            statusIndicator.innerHTML = '<span class="status-dot bg-yellow-500 animate-pulse"></span> CONNECTING...';
+            
+            // PeerJS IDs are long, but if the user entered 6 chars, we'd need the full ID.
+            // For this simple app, we expect the user to enter the full ID or we use 
+            // a prefix logic. To keep it simple, the host should just share the full ID or the short one if we match it.
+            
+            // We'll call the host. We don't need a local stream to watch.
+            const call = peer.call(hostId, null); 
+            
+            if (!call) {
+                alert("Could not reach host. Make sure the ID is correct.");
+                return;
+            }
+
+            handleCall(call);
         }
 
-        function showVideoView() {
-            setupView.classList.add('hidden');
-            videoView.classList.remove('hidden');
+        function handleCall(call) {
+            call.on('stream', (remoteStream) => {
+                remoteVideo.srcObject = remoteStream;
+                setupView.classList.add('hidden');
+                videoView.classList.remove('hidden');
+                statusIndicator.innerHTML = '<span class="status-dot bg-green-500"></span> CONNECTED';
+            });
+
+            call.on('close', () => {
+                location.reload();
+            });
         }
     </script>
 </body>
